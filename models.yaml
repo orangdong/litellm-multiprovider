@@ -1,0 +1,44 @@
+# ============================================================================
+# MODELS  --  the one file you edit to add/change models and their regions.
+# entrypoint.sh runs generate-config.py to expand this into generated/config.yaml
+# on every container start.
+#
+# For Bedrock + Mantle the model_name is built as  <alias>-<region>, and EACH
+# row carries its OWN region -- so models can be scattered across regions.
+# After editing:  docker compose up -d   (or: make restart)
+# ============================================================================
+
+# Claude -> Claude Platform on AWS (single native endpoint; not region-scattered).
+claude:
+  workspace_id: wrkspc_01Tou67ymTj2B7ZDrSXiyqWC
+  models:
+    - claude-opus-4-8
+    - claude-sonnet-4-6
+    - claude-haiku-4-5
+
+# Amazon Nova (and other SigV4 Bedrock models).  name -> <alias>-<region>.
+#   id us.* = cross-region inference profile (routes within a geo).
+#   To PIN a model that exists in only one region, use the bare id
+#   (e.g. amazon.nova-pro-v1:0) and set that row's region.
+bedrock:
+  - { alias: nova-pro,   id: us.amazon.nova-pro-v1:0,   region: us-west-2 }
+  - { alias: nova-lite,  id: us.amazon.nova-lite-v1:0,  region: us-west-2 }
+  - { alias: nova-micro, id: us.amazon.nova-micro-v1:0, region: us-west-2 }
+  # Scatter example -- same model, different region, its own entry:
+  # - { alias: nova-pro, id: amazon.nova-pro-v1:0, region: us-east-2 }
+
+# GLM (Z.AI) -> Bedrock Mantle (OpenAI-compatible).  name -> <alias>-<region>.
+mantle:
+  - { alias: glm-4.7, id: zai.glm-4.7, region: us-west-2 }
+  - { alias: glm-5,   id: zai.glm-5,   region: us-west-2 }
+
+# Passed through verbatim into generated/config.yaml (tune proxy behavior here).
+litellm_settings:
+  drop_params: true
+  num_retries: 2
+  request_timeout: 600
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true

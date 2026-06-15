@@ -1,0 +1,67 @@
+# LiteLLM proxy (LLM gateway)
+#   Claude models -> Claude Platform on AWS  (Anthropic-native API, via your AWS account)
+#   Amazon Nova   -> Amazon Bedrock          (SigV4)
+#   GLM (Z.AI)    -> Amazon Bedrock "Mantle"  (OpenAI-compatible endpoint)
+#
+# Full stack: proxy + Postgres (virtual keys, spend tracking, admin UI) + Redis (optional caching).
+# Edit .env first, then:  docker compose up -d
+
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: litellm-proxy
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    entrypoint: ["/bin/sh", "/app/entrypoint.sh"]
+    volumes:
+      - ./models.yaml:/app/models.yaml:ro                    # the ONE file you edit
+      - ./generate-config.py:/app/generate-config.py:ro      # expands models.yaml -> generated/
+      - ./entrypoint.sh:/app/entrypoint.sh:ro
+      - ./generated:/app/generated                           # rendered config (visible on host)
+    command: ["--config", "/app/generated/config.yaml", "--port", "4000"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  db:
+    image: postgres:16-alpine
+    container_name: litellm-db
+    restart: unless-stopped
+    ports:
+      # host POSTGRES_HOST_PORT (default 5433) -> container 5432.
+      # Keeps your main Postgres on host 5432 free. LiteLLM still talks to it
+      # internally as db:5432, so DATABASE_URL does NOT change.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - litellm_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional. Used only if you enable response caching in config.yaml.
+  redis:
+    image: redis:7-alpine
+    container_name: litellm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+volumes:
+  litellm_pgdata:
+    driver: local
