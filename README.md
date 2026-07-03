@@ -16,7 +16,7 @@ Clients talk OpenAI-style to one endpoint (`http://localhost:4000`) with one key
 
 - Endpoint: `https://aws-external-anthropic.<region>.api.aws` (LiteLLM appends `/v1/messages`)
 - Auth: workspace API key sent as `x-api-key`
-- Every request must carry an `anthropic-workspace-id` header (set in `config.yaml`)
+- Every request must carry an `anthropic-workspace-id` header (from `ANTHROPIC_WORKSPACE_ID` in `.env`)
 
 ---
 
@@ -25,7 +25,7 @@ Clients talk OpenAI-style to one endpoint (`http://localhost:4000`) with one key
 1. **Docker** with Compose v2 (`docker compose`).
 2. **Claude Platform on AWS** subscribed via AWS Marketplace. From the AWS Console → *Claude Platform on AWS*, grab:
    - a **workspace API key** (`sk-ant-…`) → `ANTHROPIC_AWS_API_KEY`
-   - your **workspace ID** (`wrkspc_…`) → goes into `config.yaml`
+   - your **workspace ID** (`wrkspc_…`) → `ANTHROPIC_WORKSPACE_ID`
    - Note: subscribing provisions a **new** Anthropic org tied to your AWS account — keys from a pre-existing Claude Console org won't work here.
 3. **Amazon Bedrock** model access enabled in your region for **Amazon Nova** and **Z.AI GLM**, plus:
    - IAM access key/secret with `bedrock:InvokeModel*` → `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
@@ -38,15 +38,12 @@ Clients talk OpenAI-style to one endpoint (`http://localhost:4000`) with one key
 ```bash
 # 1. Fill in secrets (the repo already has a .env scaffold; or copy the example)
 cp .env.example .env        # then edit .env  — replace every CHANGE-ME
+#    (includes ANTHROPIC_WORKSPACE_ID = your wrkspc_… id)
 
-# 2. Set your Claude workspace id in config.yaml
-#    replace all three  wrkspc_REPLACE_ME  with your real workspace id
+# 2. If you're not in us-east-1: set the region in CLAUDE_PLATFORM_AWS_BASE_URL (.env)
+#    and each model's region in models.yaml (Nova/GLM rows carry their own region).
 
-# 3. If you're not in us-east-1, update the region in .env:
-#    AWS_REGION_NAME, CLAUDE_PLATFORM_AWS_BASE_URL, BEDROCK_MANTLE_BASE_URL,
-#    and the us.* Nova model prefixes in config.yaml.
-
-# 4. Launch
+# 3. Launch
 docker compose up -d
 docker compose logs -f litellm     # watch it boot + run DB migrations
 ```
