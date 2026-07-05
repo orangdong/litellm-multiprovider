@@ -96,10 +96,19 @@ Master key no longer has to double as the dashboard password.
 - Takes effect on next `docker compose up -d` (env read at startup); no compose change
   needed (`env_file: .env` already loads it).
 
+## ✅ Apply + verify (live, 2026-07-05)
+Brought the stack up (`docker compose up -d`) and tested against the running proxy:
+- Proxy booted; render ran in-container (8 models + 5 fallback rules); migrations applied.
+- `/health/liveliness` 200; `/health/readiness` healthy (db connected); `/v1/models` lists all 8.
+- **Redis connected** (`connected_clients` incl. `redis-py` from the proxy) — router now Redis-backed.
+- **Admin login** env present in the container (`UI_USERNAME=admin`, `UI_PASSWORD` set).
+- **Live completions 200 across all three paths**: claude-haiku-4-5 (Claude Platform),
+  nova-micro-us-west-2 (Bedrock SigV4), glm-4.7-us-west-2 (Mantle) — each returned "ok".
+
 ## 🔜 Next (revised order)
 Per decision 2026-07-01, **backups are deferred to the very end** (was part of step 1).
 
-1. **Apply + verify** — `docker compose up -d`; confirm boot, config loads, Redis engages.
+1. **Apply + verify** ✅ done (see above).
 2. **Security baseline (step 2)** — admin password ✅; remaining: **virtual keys**, **TLS** in front of `:4000`.
 3. **Hardening (step 3)** — Secrets Manager, IAM rotation, PII guardrails.
 4. **Scale / polish (step 4)** — workers, prompt caching, budgets, alerting.
