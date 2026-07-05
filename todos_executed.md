@@ -86,11 +86,21 @@ Rendered the config locally in a throwaway venv (`pyyaml`); did **not** start th
 Runtime confirmation (Redis actually engaging, fallbacks triggering) still needs the
 running proxy.
 
+## ✅ Admin UI login (security baseline, step 2)
+Master key no longer has to double as the dashboard password.
+
+- **`.env`** — added `UI_USERNAME=admin` + `UI_PASSWORD=<32-char random>` (git-ignored;
+  not pushed). Password generated with real entropy, not hand-picked.
+- **`.env.example`** — added `UI_USERNAME` / `UI_PASSWORD=CHANGE-ME-admin-password` +
+  a comment (master key still works as root).
+- Takes effect on next `docker compose up -d` (env read at startup); no compose change
+  needed (`env_file: .env` already loads it).
+
 ## 🔜 Next (revised order)
 Per decision 2026-07-01, **backups are deferred to the very end** (was part of step 1).
 
 1. **Apply + verify** — `docker compose up -d`; confirm boot, config loads, Redis engages.
-2. **Security baseline (step 2)** — virtual keys, TLS in front of `:4000`, admin password.
+2. **Security baseline (step 2)** — admin password ✅; remaining: **virtual keys**, **TLS** in front of `:4000`.
 3. **Hardening (step 3)** — Secrets Manager, IAM rotation, PII guardrails.
 4. **Scale / polish (step 4)** — workers, prompt caching, budgets, alerting.
 5. **Backups (deferred → last)** — snapshot `litellm_pgdata` + securely back up
